@@ -1,0 +1,3 @@
+include ':PDF'
+include ':app'
+rootProject.name = "PDFLibrary_Android"
