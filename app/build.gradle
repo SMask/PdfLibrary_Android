@@ -28,4 +28,7 @@ dependencies {
     implementation project(':PDF')
     implementation "androidx.appcompat:appcompat:$var.AppCompatVersion"
     implementation "androidx.constraintlayout:constraintlayout:$var.ConstraintLayoutVersion"
+    implementation "com.github.HuanTanSheng:EasyPhotos:$var.EasyPhotosVersion"
+    implementation "com.github.bumptech.glide:annotations:$var.GlideVersion"
+    implementation "com.github.bumptech.glide:glide:$var.GlideVersion"
 }
