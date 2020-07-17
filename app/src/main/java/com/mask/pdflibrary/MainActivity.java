@@ -1,6 +1,8 @@
 package com.mask.pdflibrary;
 
+import android.app.Activity;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.view.View;
@@ -21,22 +23,32 @@ import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
+    private Activity activity;
+
     private View btn_choose;
     private View btn_start;
     private TextView tv_input;
     private TextView tv_output;
 
+    private File dirFile;
+
     private List<Uri> photoList;
+    private File saveFile;
 
     private boolean isLoading;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        activity = this;
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         initView();
         setListener();
         initData();
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            LogUtil.i("Environment.isExternalStorageLegacy: " + Environment.isExternalStorageLegacy());
+        }
     }
 
     private void initView() {
@@ -62,7 +74,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initData() {
+        dirFile = getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS);
+
         photoList = new ArrayList<>();
+        saveFile = null;
 
         isLoading = false;
 
@@ -74,14 +89,21 @@ public class MainActivity extends AppCompatActivity {
      */
     private void refreshView() {
         btn_start.setEnabled(!isLoading && !photoList.isEmpty());
+
+        if (saveFile != null && saveFile.exists()) {
+            tv_output.setText("Output:\n");
+            tv_output.append(saveFile.getAbsolutePath());
+        } else {
+            tv_output.setText("Output:\n");
+        }
     }
 
     /**
      * 选择图片
      */
     private void choose() {
-        EasyPhotos.createAlbum(this, true, GlideEngine.getInstance())
-                .setFileProviderAuthority(getPackageName() + ".FileProvider")
+        EasyPhotos.createAlbum(activity, true, GlideEngine.getInstance())
+                .setFileProviderAuthority(FileUtils.getAuthority(activity))
                 .setCount(10)
                 .start(new SelectCallback() {
                     @Override
@@ -104,11 +126,11 @@ public class MainActivity extends AppCompatActivity {
      * 生成PDF
      */
     private void start() {
-        final File outputFile = new File(getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), System.currentTimeMillis() + ".pdf");
+        final File outputFile = new File(dirFile, System.currentTimeMillis() + ".pdf");
         new Thread(new Runnable() {
             @Override
             public void run() {
-                PDFHelper.getInstance().photoToPDF(MainActivity.this, photoList, outputFile, new PDFCallback() {
+                PDFHelper.getInstance().photoToPDF(activity, photoList, outputFile, new PDFCallback() {
                     @Override
                     public void onStart() {
                         super.onStart();
@@ -164,9 +186,9 @@ public class MainActivity extends AppCompatActivity {
                         runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
-                                Toast.makeText(getApplication(), "生成PDF成功", Toast.LENGTH_LONG).show();
+                                saveFile = file;
 
-                                tv_output.setText("Output\n:" + file.getAbsolutePath());
+                                Toast.makeText(getApplication(), "生成PDF成功", Toast.LENGTH_LONG).show();
 
                                 isLoading = false;
 
@@ -186,9 +208,9 @@ public class MainActivity extends AppCompatActivity {
                         runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
-                                Toast.makeText(getApplication(), "生成PDF失败", Toast.LENGTH_LONG).show();
+                                saveFile = null;
 
-                                tv_output.setText("Output\n:");
+                                Toast.makeText(getApplication(), "生成PDF失败", Toast.LENGTH_LONG).show();
 
                                 isLoading = false;
 
@@ -200,4 +222,5 @@ public class MainActivity extends AppCompatActivity {
             }
         }).start();
     }
+
 }
