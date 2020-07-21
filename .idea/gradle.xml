@@ -11,7 +11,7 @@
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$" />
-            <option value="$PROJECT_DIR$/PDF" />
+            <option value="$PROJECT_DIR$/Pdf" />
             <option value="$PROJECT_DIR$/app" />
           </set>
         </option>

@@ -3,10 +3,10 @@ package com.pdf;
 import java.io.File;
 
 /**
- * PDF回调
+ * Pdf回调
  * Created by lishilin on 2020/06/09
  */
-public abstract class PDFCallback {
+public abstract class PdfWriteCallback {
 
     /**
      * 开始

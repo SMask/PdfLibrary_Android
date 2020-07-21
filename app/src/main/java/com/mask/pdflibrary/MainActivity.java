@@ -6,6 +6,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -14,8 +15,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.huantansheng.easyphotos.EasyPhotos;
 import com.huantansheng.easyphotos.callback.SelectCallback;
 import com.huantansheng.easyphotos.models.album.entity.Photo;
-import com.pdf.PDFCallback;
-import com.pdf.PDFHelper;
+import com.pdf.PdfWriteCallback;
+import com.pdf.PdfHelper;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -27,6 +28,8 @@ public class MainActivity extends AppCompatActivity {
 
     private View btn_choose;
     private View btn_start;
+    private View btn_display;
+    private ViewGroup layout_content;
     private TextView tv_input;
     private TextView tv_output;
 
@@ -54,6 +57,8 @@ public class MainActivity extends AppCompatActivity {
     private void initView() {
         btn_choose = findViewById(R.id.btn_choose);
         btn_start = findViewById(R.id.btn_start);
+        btn_display = findViewById(R.id.btn_display);
+        layout_content = findViewById(R.id.layout_content);
         tv_input = findViewById(R.id.tv_input);
         tv_output = findViewById(R.id.tv_output);
     }
@@ -71,13 +76,19 @@ public class MainActivity extends AppCompatActivity {
                 start();
             }
         });
+        btn_display.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                display();
+            }
+        });
     }
 
     private void initData() {
         dirFile = getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS);
 
         photoList = new ArrayList<>();
-        saveFile = null;
+        saveFile = new File(dirFile, "1595327677431.pdf");
 
         isLoading = false;
 
@@ -88,13 +99,14 @@ public class MainActivity extends AppCompatActivity {
      * 刷新View
      */
     private void refreshView() {
-        btn_start.setEnabled(!isLoading && !photoList.isEmpty());
+        boolean isExists = saveFile != null && saveFile.exists();
 
-        if (saveFile != null && saveFile.exists()) {
-            tv_output.setText("Output:\n");
+        btn_start.setEnabled(!isLoading && !photoList.isEmpty());
+        btn_display.setEnabled(isExists);
+
+        tv_output.setText("Output:\n");
+        if (isExists) {
             tv_output.append(saveFile.getAbsolutePath());
-        } else {
-            tv_output.setText("Output:\n");
         }
     }
 
@@ -123,14 +135,14 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * 生成PDF
+     * 生成Pdf
      */
     private void start() {
         final File outputFile = new File(dirFile, System.currentTimeMillis() + ".pdf");
         new Thread(new Runnable() {
             @Override
             public void run() {
-                PDFHelper.getInstance().photoToPDF(activity, photoList, outputFile, new PDFCallback() {
+                PdfHelper.getInstance().photoToPdf(activity, photoList, outputFile, new PdfWriteCallback() {
                     @Override
                     public void onStart() {
                         super.onStart();
@@ -140,7 +152,7 @@ public class MainActivity extends AppCompatActivity {
                         runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
-                                Toast.makeText(getApplication(), "生成PDF开始", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(getApplication(), "生成Pdf开始", Toast.LENGTH_SHORT).show();
 
                                 isLoading = true;
 
@@ -158,7 +170,7 @@ public class MainActivity extends AppCompatActivity {
                         runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
-                                Toast.makeText(getApplication(), "生成PDF进度 " + index + "/" + total, Toast.LENGTH_SHORT).show();
+                                Toast.makeText(getApplication(), "生成Pdf进度 " + index + "/" + total, Toast.LENGTH_SHORT).show();
                             }
                         });
                     }
@@ -172,7 +184,7 @@ public class MainActivity extends AppCompatActivity {
                         runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
-                                Toast.makeText(getApplication(), "生成PDF写入文件", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(getApplication(), "生成Pdf写入文件", Toast.LENGTH_SHORT).show();
                             }
                         });
                     }
@@ -188,7 +200,7 @@ public class MainActivity extends AppCompatActivity {
                             public void run() {
                                 saveFile = file;
 
-                                Toast.makeText(getApplication(), "生成PDF成功", Toast.LENGTH_LONG).show();
+                                Toast.makeText(getApplication(), "生成Pdf成功", Toast.LENGTH_LONG).show();
 
                                 isLoading = false;
 
@@ -210,7 +222,7 @@ public class MainActivity extends AppCompatActivity {
                             public void run() {
                                 saveFile = null;
 
-                                Toast.makeText(getApplication(), "生成PDF失败", Toast.LENGTH_LONG).show();
+                                Toast.makeText(getApplication(), "生成Pdf失败", Toast.LENGTH_LONG).show();
 
                                 isLoading = false;
 
@@ -221,6 +233,13 @@ public class MainActivity extends AppCompatActivity {
                 });
             }
         }).start();
+    }
+
+    /**
+     * 显示Pdf
+     */
+    private void display() {
+
     }
 
 }

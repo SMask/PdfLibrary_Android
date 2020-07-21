@@ -21,20 +21,20 @@ import java.io.InputStream;
 import java.util.List;
 
 /**
- * PDF帮助类
+ * Pdf帮助类
  * Created by lishilin on 2020/06/09
  */
-public class PDFHelper {
+public class PdfHelper {
 
     private static class InstanceHolder {
-        private static final PDFHelper instance = new PDFHelper();
+        private static final PdfHelper instance = new PdfHelper();
     }
 
-    public static PDFHelper getInstance() {
+    public static PdfHelper getInstance() {
         return InstanceHolder.instance;
     }
 
-    private PDFHelper() {
+    private PdfHelper() {
         paint = new Paint();
         paint.setAntiAlias(true);
         paint.setStyle(Paint.Style.FILL);
@@ -47,14 +47,14 @@ public class PDFHelper {
     private Matrix matrix;
 
     /**
-     * 图片生成PDF
+     * 图片生成Pdf
      *
      * @param context    context
      * @param uriList    uriList
      * @param outputFile outputFile
      * @param callback   callback
      */
-    public void photoToPDF(Context context, List<Uri> uriList, File outputFile, PDFCallback callback) {
+    public void photoToPdf(Context context, List<Uri> uriList, File outputFile, PdfWriteCallback callback) {
         if (outputFile == null) {
             callback.onFail(new FileNotFoundException("outputFile 非法！"));
             return;
@@ -80,7 +80,7 @@ public class PDFHelper {
         int width = displayMetrics.widthPixels;
         int height = displayMetrics.heightPixels;
 
-        // 创建PDF
+        // 创建Pdf
         PdfDocument pdfDocument = new PdfDocument();
         PdfDocument.PageInfo pageInfo = new PdfDocument.PageInfo.Builder(width, height, size).create();
 
@@ -130,6 +130,7 @@ public class PDFHelper {
         try {
             fileOutputStream = new FileOutputStream(outputFile);
             pdfDocument.writeTo(fileOutputStream);
+            fileOutputStream.flush();
             callback.onSuccess(outputFile);
         } catch (Exception e) {
             e.printStackTrace();
@@ -144,6 +145,16 @@ public class PDFHelper {
             }
             pdfDocument.close();
         }
+    }
+
+    /**
+     * 读取Pdf
+     *
+     * @param context context
+     * @param file    file
+     */
+    public void readPdf(Context context, File file) {
+
     }
 
     /**
