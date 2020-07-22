@@ -1,12 +1,14 @@
 package com.pdf;
 
-import java.io.File;
+import android.graphics.Bitmap;
+
+import java.util.List;
 
 /**
- * Pdf回调(写)
+ * Pdf回调(读)
  * Created by lishilin on 2020/06/09
  */
-public abstract class PdfWriteCallback {
+public abstract class PdfReadCallback {
 
     /**
      * 开始
@@ -26,18 +28,11 @@ public abstract class PdfWriteCallback {
     }
 
     /**
-     * 保存文件
-     */
-    public void onSaveFile() {
-
-    }
-
-    /**
      * 成功
      *
-     * @param file 保存的文件
+     * @param bitmapList 读取的Bitmap
      */
-    public void onSuccess(File file) {
+    public void onSuccess(List<Bitmap> bitmapList) {
 
     }
 

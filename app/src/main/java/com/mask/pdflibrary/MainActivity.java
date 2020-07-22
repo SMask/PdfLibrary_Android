@@ -1,12 +1,14 @@
 package com.mask.pdflibrary;
 
 import android.app.Activity;
+import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -15,12 +17,17 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.huantansheng.easyphotos.EasyPhotos;
 import com.huantansheng.easyphotos.callback.SelectCallback;
 import com.huantansheng.easyphotos.models.album.entity.Photo;
-import com.pdf.PdfWriteCallback;
+import com.mask.photo.interfaces.SaveBitmapCallback;
+import com.mask.photo.utils.BitmapUtils;
 import com.pdf.PdfHelper;
+import com.pdf.PdfReadCallback;
+import com.pdf.PdfWriteCallback;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -39,6 +46,8 @@ public class MainActivity extends AppCompatActivity {
     private File saveFile;
 
     private boolean isLoading;
+
+    private ExecutorService threadPool;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -88,9 +97,11 @@ public class MainActivity extends AppCompatActivity {
         dirFile = getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS);
 
         photoList = new ArrayList<>();
-        saveFile = new File(dirFile, "1595327677431.pdf");
+        saveFile = new File(dirFile, "1595401981634.pdf");
 
         isLoading = false;
+
+        threadPool = Executors.newCachedThreadPool();
 
         refreshView();
     }
@@ -138,16 +149,16 @@ public class MainActivity extends AppCompatActivity {
      * 生成Pdf
      */
     private void start() {
-        final File outputFile = new File(dirFile, System.currentTimeMillis() + ".pdf");
-        new Thread(new Runnable() {
+        Runnable runnable = new Runnable() {
             @Override
             public void run() {
+                final File outputFile = new File(dirFile, System.currentTimeMillis() + ".pdf");
                 PdfHelper.getInstance().photoToPdf(activity, photoList, outputFile, new PdfWriteCallback() {
                     @Override
                     public void onStart() {
                         super.onStart();
 
-                        LogUtil.i("onStart");
+                        LogUtil.i("start onStart");
 
                         runOnUiThread(new Runnable() {
                             @Override
@@ -165,7 +176,7 @@ public class MainActivity extends AppCompatActivity {
                     public void onProgress(final int index, final int total) {
                         super.onProgress(index, total);
 
-                        LogUtil.i("onProgress: " + index + "/" + total);
+                        LogUtil.i("start onProgress: " + index + "/" + total);
 
                         runOnUiThread(new Runnable() {
                             @Override
@@ -179,7 +190,7 @@ public class MainActivity extends AppCompatActivity {
                     public void onSaveFile() {
                         super.onSaveFile();
 
-                        LogUtil.i("onSaveFile");
+                        LogUtil.i("start onSaveFile");
 
                         runOnUiThread(new Runnable() {
                             @Override
@@ -193,7 +204,7 @@ public class MainActivity extends AppCompatActivity {
                     public void onSuccess(final File file) {
                         super.onSuccess(file);
 
-                        LogUtil.i("onSuccess: " + file.getAbsolutePath());
+                        LogUtil.i("start onSuccess: " + file.getAbsolutePath());
 
                         runOnUiThread(new Runnable() {
                             @Override
@@ -215,7 +226,7 @@ public class MainActivity extends AppCompatActivity {
 
                         e.printStackTrace();
 
-                        LogUtil.e("onFail");
+                        LogUtil.e("start onFail");
 
                         runOnUiThread(new Runnable() {
                             @Override
@@ -232,14 +243,105 @@ public class MainActivity extends AppCompatActivity {
                     }
                 });
             }
-        }).start();
+        };
+        threadPool.execute(runnable);
     }
 
     /**
      * 显示Pdf
      */
     private void display() {
+        Runnable runnable = new Runnable() {
+            @Override
+            public void run() {
+                PdfHelper.getInstance().readPdf(activity, saveFile, new PdfReadCallback() {
+                    @Override
+                    public void onStart() {
+                        super.onStart();
 
+                        LogUtil.i("display onStart");
+                    }
+
+                    @Override
+                    public void onProgress(int index, int total) {
+                        super.onProgress(index, total);
+
+                        LogUtil.i("display onProgress: " + index + "/" + total);
+                    }
+
+                    @Override
+                    public void onSuccess(final List<Bitmap> bitmapList) {
+                        super.onSuccess(bitmapList);
+
+                        LogUtil.i("display onSuccess: " + bitmapList.size());
+
+                        final int size = bitmapList.size();
+                        final int count = layout_content.getChildCount();
+
+                        activity.runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                // 显示图片
+                                for (int i = 0; i < size; i++) {
+                                    Bitmap bitmap = bitmapList.get(i);
+                                    ImageView img_pdf;
+                                    if (i < count) {
+                                        img_pdf = (ImageView) layout_content.getChildAt(i);
+                                    } else {
+                                        img_pdf = new ImageView(activity);
+                                        layout_content.addView(img_pdf, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+                                    }
+                                    img_pdf.setImageBitmap(bitmap);
+                                }
+                                // 移除多余的ImageView
+                                if (count > size) {
+                                    int num = count - size;
+                                    layout_content.removeViews(size, num);
+                                }
+                            }
+                        });
+
+                        Runnable runnable = new Runnable() {
+                            @Override
+                            public void run() {
+                                // 保存图片
+                                for (int i = 0; i < size; i++) {
+                                    Bitmap bitmap = bitmapList.get(i);
+                                    final String fileName = saveFile.getName() + "_" + (i + 1) + ".png";
+                                    File file = new File(dirFile, fileName);
+                                    if (!file.exists()) {
+                                        BitmapUtils.saveBitmapToFile(bitmap, file, new SaveBitmapCallback() {
+                                            @Override
+                                            public void onSuccess(File file) {
+                                                super.onSuccess(file);
+
+                                                LogUtil.i("save onSuccess: " + file.getAbsolutePath());
+                                            }
+
+                                            @Override
+                                            public void onFail(Exception e) {
+                                                super.onFail(e);
+
+                                                LogUtil.e("save onFail");
+                                            }
+                                        });
+                                    }
+                                }
+                            }
+                        };
+                        threadPool.execute(runnable);
+                    }
+
+                    @Override
+                    public void onFail(Exception e) {
+                        super.onFail(e);
+
+                        LogUtil.e("display onFail");
+                    }
+                });
+            }
+        };
+        threadPool.execute(runnable);
     }
 
 }

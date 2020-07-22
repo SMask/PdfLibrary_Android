@@ -1,14 +1,16 @@
 package com.pdf;
 
+import android.app.Activity;
 import android.content.Context;
-import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.pdf.PdfDocument;
+import android.graphics.pdf.PdfRenderer;
 import android.net.Uri;
+import android.os.ParcelFileDescriptor;
 import android.util.DisplayMetrics;
 
 import androidx.exifinterface.media.ExifInterface;
@@ -16,8 +18,8 @@ import androidx.exifinterface.media.ExifInterface;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -49,12 +51,12 @@ public class PdfHelper {
     /**
      * 图片生成Pdf
      *
-     * @param context    context
+     * @param activity   activity
      * @param uriList    uriList
      * @param outputFile outputFile
      * @param callback   callback
      */
-    public void photoToPdf(Context context, List<Uri> uriList, File outputFile, PdfWriteCallback callback) {
+    public void photoToPdf(Activity activity, List<Uri> uriList, File outputFile, PdfWriteCallback callback) {
         if (outputFile == null) {
             callback.onFail(new FileNotFoundException("outputFile 非法！"));
             return;
@@ -73,10 +75,11 @@ public class PdfHelper {
 
         callback.onStart();
 
-        int size = uriList.size();
+        final int size = uriList.size();
 
         // 获取屏幕宽高
-        DisplayMetrics displayMetrics = Resources.getSystem().getDisplayMetrics();
+        DisplayMetrics displayMetrics = new DisplayMetrics();
+        activity.getWindowManager().getDefaultDisplay().getRealMetrics(displayMetrics);
         int width = displayMetrics.widthPixels;
         int height = displayMetrics.heightPixels;
 
@@ -89,7 +92,7 @@ public class PdfHelper {
             callback.onProgress(i + 1, size);
 
             Uri uri = uriList.get(i);
-            Bitmap bitmap = getBitmap(context, uri);
+            Bitmap bitmap = getBitmap(activity, uri);
             if (bitmap == null) {
                 continue;
             }
@@ -126,9 +129,8 @@ public class PdfHelper {
 
         // 写入文件
         callback.onSaveFile();
-        FileOutputStream fileOutputStream = null;
-        try {
-            fileOutputStream = new FileOutputStream(outputFile);
+
+        try (FileOutputStream fileOutputStream = new FileOutputStream(outputFile)) {
             pdfDocument.writeTo(fileOutputStream);
             fileOutputStream.flush();
             callback.onSuccess(outputFile);
@@ -136,25 +138,52 @@ public class PdfHelper {
             e.printStackTrace();
             callback.onFail(e);
         } finally {
-            if (fileOutputStream != null) {
-                try {
-                    fileOutputStream.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
             pdfDocument.close();
         }
+
     }
 
     /**
      * 读取Pdf
      *
-     * @param context context
-     * @param file    file
+     * @param context  context
+     * @param file     file
+     * @param callback callback
      */
-    public void readPdf(Context context, File file) {
+    public void readPdf(Context context, File file, PdfReadCallback callback) {
+        if (file == null || !file.exists()) {
+            callback.onFail(new FileNotFoundException("file 不存在！"));
+            return;
+        }
 
+        callback.onStart();
+
+        try (ParcelFileDescriptor fileDescriptor = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY);
+             PdfRenderer pdfRenderer = new PdfRenderer(fileDescriptor)) {
+
+            final int size = pdfRenderer.getPageCount();
+
+            final List<Bitmap> bitmapList = new ArrayList<>(size);
+
+            for (int i = 0; i < size; i++) {
+                callback.onProgress(i + 1, size);
+
+                final PdfRenderer.Page page = pdfRenderer.openPage(i);
+
+                final Bitmap bitmap = Bitmap.createBitmap(page.getWidth(), page.getHeight(), Bitmap.Config.ARGB_8888);
+
+                page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY);
+
+                bitmapList.add(bitmap);
+
+                page.close();
+            }
+
+            callback.onSuccess(bitmapList);
+        } catch (Exception e) {
+            e.printStackTrace();
+            callback.onFail(e);
+        }
     }
 
     /**
@@ -200,7 +229,7 @@ public class PdfHelper {
      * @param exif   ExifInterface
      * @return Bitmap
      */
-    public static Bitmap adjustOrientation(Bitmap bitmap, ExifInterface exif) {
+    private Bitmap adjustOrientation(Bitmap bitmap, ExifInterface exif) {
         if (bitmap == null || exif == null) {
             return bitmap;
         }
@@ -242,7 +271,7 @@ public class PdfHelper {
      *
      * @param bitmap Bitmap
      */
-    public static void recycle(Bitmap bitmap) {
+    private void recycle(Bitmap bitmap) {
         if (bitmap != null) {
             if (!bitmap.isRecycled()) {
                 bitmap.recycle();
